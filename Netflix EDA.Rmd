@@ -1,0 +1,256 @@
+---
+title: "Project Presentation Work"
+author: "Nikhil Gudipally, Prajakta Ghumatkar, Sindhya Balasubramanian, Vishnu Rohan"
+date: "12/6/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Phase 1 - Read Files and EDA
+```{r EDA}
+#setwd("C:/Users/Shivapriya B/Desktop/NEU Work/Classwork/Semester 1/IDMP/Project Presentation and Report/Data")
+df <- read.csv("~/Downloads/netflix-rotten-tomatoes-metacritic-imdb.csv")
+View(df)
+#check number of NAs in rotten tomatoes score
+print(sum(is.na(df$Rotten.Tomatoes.Score)))
+
+#check number of NAs in IMDB score
+print(sum(is.na(df$IMDb.Score)))
+
+#check number of NAs in rotten tomatoes score and IMDB score
+print(sum(is.na(df$IMDb.Score) && is.na(df$Rotten.Tomatoes.Score)))
+
+#Create new Score attribute by combining IMDB score and rotten tomatoes score
+library(dplyr)
+library(tidyr)
+df <- df %>% 
+  mutate(Score = if_else(is.na(IMDb.Score)==FALSE, IMDb.Score, Rotten.Tomatoes.Score/10))
+print(sum(is.na(df$Score)))
+df = df %>% drop_na(Score)
+
+#Deleting Rotten.Tomatoes.Score and IMDb.Score as it is replaced by Score
+df = subset(df, select = -c(Rotten.Tomatoes.Score,IMDb.Score))
+
+#Deleting Columns with a lot of missing data
+df = subset(df, select = -c(Metacritic.Score,Awards.Nominated.For, Awards.Received))
+```
+
+Phase 2 - Tidying the data
+```{r}
+temp = select(df, c(Title, Genre, Languages, Series.or.Movie, Hidden.Gem.Score, Country.Availability, Runtime, Director, Writer, Actors, Boxoffice, Score));
+temp = separate_rows(temp, Languages);
+
+temp[!is.na(temp$Languages),]
+temp %>% distinct();
+temp = separate_rows(temp, Genre);
+temp[!is.na(temp$Genre),]
+temp %>% distinct();
+temp = separate_rows(temp, Actors);
+temp[!is.na(temp$Actors),]
+temp %>% distinct();
+temp = separate_rows(temp, Director);
+temp[!is.na(temp$Director),]
+temp %>% distinct();
+temp = separate_rows(temp, Writer);
+temp[!is.na(temp$Writer),]
+temp %>% distinct();
+
+head(temp)
+```
+
+Phase 3 - Visualizations
+a. Language level analysis of ratings
+```{r}
+library(ggplot2)
+temp = df
+temp = separate_rows(temp, Languages)
+
+langScore <- temp %>% distinct() %>% group_by(Languages) %>% summarise(Score = mean(Score), count=n()) 
+langScore <- langScore %>% arrange(desc(count))
+langScore1 <- head(langScore[,],10)
+
+otherScore = langScore[11:196,2]
+otherCount = langScore[11:196,3]
+
+others <- data.frame("Others", mean(otherScore$Score), sum(otherScore$Score))
+names(others) = c("Languages", "Score", "count")
+langScore1 = rbind(langScore1,others)
+
+ggplot(langScore1, aes(x=Languages, y=Score)) + 
+  geom_bar(stat = "identity", fill='blue') +  
+  labs(x='Language') + labs(y='Rating') + 
+  theme_minimal()
+```
+b. Genre Distribution for Series and Movies
+```{r}
+library(ggplot2)
+df_1 = temp %>%
+  select(c(Title, Genre)) %>%
+  distinct() %>%
+  group_by(Genre) %>%
+  count ()
+
+ggplot(data = df_1, mapping = aes(x = Genre, y = n)) +
+  geom_col(fill = 'blue') +
+  theme_minimal() +
+  scale_x_discrete(guide = guide_axis(angle = 90)) + 
+  labs (x = "Genre", y = "Count Series & Movies")
+```
+c. Genre Distribution for Series
+```{r}
+df_1 = temp %>%
+  filter(Series.or.Movie == "Series") %>%
+  select(c(Title, Genre)) %>%
+  distinct() %>%
+  group_by(Genre) %>%
+  count ()
+
+ggplot(data = df_1, mapping = aes(x = Genre, y = n)) +
+  geom_col(fill = 'blue') +
+  theme_minimal() +
+  scale_x_discrete(guide = guide_axis(angle = 90)) + 
+  labs (x = "Genre", y = "Count Series")
+```
+
+d. Genre Distribution for  Movies
+```{r}
+df_1 = temp %>%
+  filter(Series.or.Movie == "Movie") %>%
+  select(c(Title, Genre)) %>%
+  distinct() %>%
+  group_by(Genre) %>%
+  count ()
+
+df_1
+ggplot(data = df_1, mapping = aes(x = Genre, y = n)) +
+  geom_col(fill = 'blue') +
+  theme_minimal() +
+  scale_x_discrete(guide = guide_axis(angle = 90)) + 
+  labs (x = "Genre", y = "Count Movies")
+```
+e. Language Distribution for Series
+```{r}
+df_1 = temp %>%
+  filter(Series.or.Movie == "Series") %>%
+  select(c(Title, Languages)) %>%
+  distinct() %>%
+  group_by(Languages) %>%
+  count () %>%
+  arrange(desc(n))
+
+df_1 = df_1[!is.na(df_1$Languages), ]
+df_1 = df_1[1:10,]
+  
+ggplot(data = df_1, mapping = aes(x = Languages, y = n)) +
+  geom_col(fill = 'blue') +
+  theme_minimal() +
+  scale_x_discrete(guide = guide_axis(angle = 90)) + 
+  labs (x = "Languages", y = "Count Series")
+```
+f. Language Distribution for Movies
+```{r}
+df_1 = temp %>%
+  filter(Series.or.Movie == "Movie") %>%
+  select(c(Title, Languages)) %>%
+  distinct() %>%
+  group_by(Languages) %>%
+  count () %>%
+  arrange(desc(n))
+
+df_1 = df_1[!is.na(df_1$Languages), ]
+df_1 = df_1[1:10,]
+  
+ggplot(data = df_1, mapping = aes(x = Languages, y = n)) +
+  geom_col(fill = 'blue') +
+  theme_minimal() +
+  scale_x_discrete(guide = guide_axis(angle = 90)) + 
+  labs (x = "Languages", y = "Count Movie")
+```
+g. Distribution of shows and movies as individual categories 
+```{r}
+ggplot(df, aes(x=reorder(Series.or.Movie, Series.or.Movie, function(x)-length(x)))) +
+  geom_bar(fill='blue') +  
+  labs(x='Category') + labs(y='Count') + 
+  theme_minimal()
+```
+
+
+Phase 4 - Dimension Reduction 
+a. t-SNE for Non Linear Relationships
+
+Step 1 - Calcualte Gower Distance
+```{r}
+library(cluster)
+temp$Genre <- as.factor(temp$Genre)
+temp$Actors <- as.factor(temp$Actors)
+temp$Languages <- as.factor(temp$Languages)
+temp$Director <- as.factor(temp$Director)
+
+df_1 = select(temp, c(Title,Genre, Actors, Languages, Score)) %>%
+  distinct()
+df_1$Title = as.factor(df_1$Title)
+df_2 = select(df_1, c(Title,Genre, Actors, Languages, Score)) %>%
+  distinct()
+
+tmp_df = sample_n(df_2, 5000) 
+head(tmp_df)
+
+rm(df_1)
+
+gower_df = daisy(tmp_df,
+                metric = "gower");
+```
+
+Step 2 - tSNE using Perplexity 10
+```{r}
+set.seed(1)
+rm(temp)
+library(Rtsne)
+
+tsne_1 <- Rtsne(gower_df, perplexity=10, verbose=FALSE, max_iter = 10000)
+
+color_table = tmp_df$Genre;
+colnames(tsne_1$Y) <- c("C1", "C2")
+X_10 = as.data.frame(tsne_1$Y)
+
+ggplot(X_10, aes(x=C1, y=C2, color = color_table)) +
+  geom_point() +
+  scale_color_brewer(palette="Dark2") +
+  labs(title="Perplexity = 10") +
+  theme_minimal()
+```
+
+Step 2 - tSNE using Perplexity 30
+```{r}
+set.seed(1)
+
+tsne <- Rtsne(gower_df, perplexity=30, verbose=FALSE, max_iter = 10000)
+
+colnames(tsne$Y) <- c("C1", "C2")
+X_30 = as.data.frame(tsne$Y)
+
+ggplot(X_30, aes(x=C1, y=C2, color = color_table)) +
+  geom_point() +
+  scale_color_brewer(palette="Dark2") +
+  labs(title="Perplexity = 30") +
+  theme_minimal()
+```
+
+Step 3 - tSNE using Perplexity 50
+```{r}
+set.seed(1)
+
+tsne_3 <- Rtsne(gower_df, perplexity=50, verbose=FALSE, max_iter = 10000)
+
+colnames(tsne_3$Y) <- c("C1", "C2")
+X_50 = as.data.frame(tsne_3$Y)
+
+ggplot(X_50, aes(x=C1, y=C2, color = color_table)) +
+  geom_point() +
+  scale_color_brewer(palette="Dark2") +
+  labs(title="Perplexity = 50") +
+  theme_minimal()
+```
